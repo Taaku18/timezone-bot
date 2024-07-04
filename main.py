@@ -238,12 +238,15 @@ class Timezone(commands.Cog):
         """
         Manage your timezone.
         """
-        await ctx.reply(f"Run `{ctx.prefix}{self.timezone_set.qualified_name}` to set your timezone.", ephemeral=True)
+        await ctx.reply(
+            f"Run `{ctx.prefix}{self.timezone_set.qualified_name}` to set your timezone.",
+            ephemeral=True,
+        )
 
     @commands.guild_only()
     @timezone.command(name="set")
     @app_commands.autocomplete(timezone=timezone_autocomplete)
-    async def timezone_set(self, ctx: commands.Context, timezone: str, *, user: discord.Member | None = None) -> None:
+    async def timezone_set(self, ctx: commands.Context, timezone: str, *, user: discord.User | None = None) -> None:
         """
         Set your timezone.
 
@@ -254,7 +257,10 @@ class Timezone(commands.Cog):
             user = ctx.author
         else:
             if not ctx.author.guild_permissions.manage_guild and ctx.author != user:
-                await ctx.reply("You do not have permission to set the timezone for others.", ephemeral=True)
+                await ctx.reply(
+                    "You do not have permission to set the timezone for others.",
+                    ephemeral=True,
+                )
                 return
 
         timezone = timezone.casefold().strip()
@@ -293,7 +299,7 @@ class Timezone(commands.Cog):
 
     @commands.guild_only()
     @timezone.command(name="clear")
-    async def timezone_clear(self, ctx: commands.Context, *, user: discord.Member | None = None) -> None:
+    async def timezone_clear(self, ctx: commands.Context, *, user: discord.User | None = None) -> None:
         """
         Clear your timezone.
 
@@ -303,12 +309,18 @@ class Timezone(commands.Cog):
             user = ctx.author
         else:
             if not ctx.author.guild_permissions.manage_guild and ctx.author != user:
-                await ctx.reply("You do not have permission to clear the timezone for others.", ephemeral=True)
+                await ctx.reply(
+                    "You do not have permission to clear the timezone for others.",
+                    ephemeral=True,
+                )
                 return
 
         logger.info("Clearing timezone for %s (%d).", user, ctx.author.id)
         await self.remove_timezone(ctx.guild.id, user.id)
-        await ctx.reply(f"{user.mention}'s timezone has been cleared.", allowed_mentions=discord.AllowedMentions.none())
+        await ctx.reply(
+            f"{user.mention}'s timezone has been cleared.",
+            allowed_mentions=discord.AllowedMentions.none(),
+        )
 
     @commands.guild_only()
     @commands.hybrid_command()
@@ -363,7 +375,11 @@ class Timezone(commands.Cog):
         """
 
         # Set initial color
-        current_color = (random.uniform(0, 1), random.uniform(0, 1), random.uniform(0, 1))
+        current_color = (
+            random.uniform(0, 1),
+            random.uniform(0, 1),
+            random.uniform(0, 1),
+        )
 
         step_count = 10
 
@@ -371,7 +387,11 @@ class Timezone(commands.Cog):
             step = 0
 
             # Randomly choose a new target color
-            target_color = (random.uniform(0, 1), random.uniform(0, 1), random.uniform(0, 1))
+            target_color = (
+                random.uniform(0, 1),
+                random.uniform(0, 1),
+                random.uniform(0, 1),
+            )
 
             # Transition to the target color gradually
             for i in range(step_count):
@@ -405,14 +425,31 @@ class Timezone(commands.Cog):
         if not timezones:
             time_text += "No one has set their timezone."
         else:
+            users_by_timezones: dict[datetime.datetime, list[tuple[int, pytz.BaseTzInfo]]] = {}
             for user_id, tz in timezones.items():
-                time_text += f"<@{user_id}> {time_now.astimezone(tz).strftime('%b %d, %Y %H:%M:%S %Z')}\n"
+                naive_time = time_now.astimezone(tz).replace(tzinfo=None)
+                if naive_time not in users_by_timezones:
+                    users_by_timezones[naive_time] = [(user_id, tz)]
+                else:
+                    users_by_timezones[naive_time].append((user_id, tz))
+
+            users_by_timezones_sorted = sorted(
+                users_by_timezones.items(),
+                key=lambda x: (x[0], len(x[1])),
+            )
+            for naive_time, user_time in users_by_timezones_sorted:
+                time_text += f"**{naive_time.strftime('%b %d, %Y %I:%M:%S %p')}:**\n"
+                time_text += " ".join(f"<@{user_id}>" for user_id, tz in user_time) + "\n\n"
+
+        time_text = time_text.rstrip()
 
         if show_last_updated:
             time_text += f"\n\n*Last Updated: <t:{int(time_now.timestamp())}:f>*"
 
         embed = discord.Embed(
-            title="What is the time for everyone?", description=time_text.strip(), colour=self.get_colour()
+            title="What's the time?",
+            description=time_text.strip(),
+            colour=self.get_colour(),
         )
         return embed
 
@@ -446,7 +483,11 @@ class Timezone(commands.Cog):
             try:
                 await self.time_message_cache[ctx.guild.id].delete()
             except Exception:
-                logger.warning("Failed to delete time message for guild %d.", ctx.guild.id, exc_info=True)
+                logger.warning(
+                    "Failed to delete time message for guild %d.",
+                    ctx.guild.id,
+                    exc_info=True,
+                )
 
         embed = await self.create_time_message_embed(ctx.guild)
         try:
@@ -476,7 +517,11 @@ class Timezone(commands.Cog):
         try:
             await self.time_message_cache[ctx.guild.id].delete()
         except Exception:
-            logger.warning("Failed to delete time message for guild %d.", ctx.guild.id, exc_info=True)
+            logger.warning(
+                "Failed to delete time message for guild %d.",
+                ctx.guild.id,
+                exc_info=True,
+            )
 
         await self.remove_time_message(ctx.guild.id)
         await ctx.reply("Persistent time message cleared.")
