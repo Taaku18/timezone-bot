@@ -425,20 +425,26 @@ class Timezone(commands.Cog):
         if not timezones:
             time_text += "No one has set their timezone."
         else:
-            users_by_timezones: dict[datetime.datetime, list[tuple[int, pytz.BaseTzInfo]]] = {}
+            users_by_timezones: dict[str, list[tuple[int, pytz.BaseTzInfo]]] = {}
             for user_id, tz in timezones.items():
-                naive_time = time_now.astimezone(tz).replace(tzinfo=None)
-                if naive_time not in users_by_timezones:
-                    users_by_timezones[naive_time] = [(user_id, tz)]
+                naive_date = time_now.astimezone(tz).date()
+                naive_time = time_now.astimezone(tz).time()
+                naive_time_string = naive_time.strftime("%I:%M %p")
+                if naive_date < time_now.date():  # -1 day
+                    naive_time_string += " (-1)"
+                elif naive_date > time_now.date():  # +1 day
+                    naive_time_string += " (+1)"
+                if naive_time_string not in users_by_timezones:
+                    users_by_timezones[naive_time_string] = [(user_id, tz)]
                 else:
-                    users_by_timezones[naive_time].append((user_id, tz))
+                    users_by_timezones[naive_time_string].append((user_id, tz))
 
             users_by_timezones_sorted = sorted(
                 users_by_timezones.items(),
-                key=lambda x: (x[0], len(x[1])),
-            )
-            for naive_time, user_time in users_by_timezones_sorted:
-                time_text += f"**{naive_time.strftime('%b %d, %Y %I:%M:%S %p')}:**\n"
+                key=lambda x: ("-1" not in x[0], "+1" in x[0], x[0], len(x[1])),
+            )  # Compare so -1 day, comes before today, which comes before +1 day.
+            for naive_time_string, user_time in users_by_timezones_sorted:
+                time_text += f"**{naive_time_string}**\n"
                 time_text += " ".join(f"<@{user_id}>" for user_id, tz in user_time) + "\n\n"
 
         time_text = time_text.rstrip()
@@ -451,6 +457,7 @@ class Timezone(commands.Cog):
             description=time_text.strip(),
             colour=self.get_colour(),
         )
+
         return embed
 
     @commands.has_guild_permissions(manage_guild=True)
