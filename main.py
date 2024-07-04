@@ -425,7 +425,7 @@ class Timezone(commands.Cog):
         if not timezones:
             time_text += "No one has set their timezone."
         else:
-            users_by_timezones: dict[str, list[tuple[int, pytz.BaseTzInfo]]] = {}
+            users_by_timezones: dict[tuple[datetime.time, str], list[tuple[int, pytz.BaseTzInfo]]] = {}
             for user_id, tz in timezones.items():
                 naive_date = time_now.astimezone(tz).date()
                 naive_time = time_now.astimezone(tz).time()
@@ -434,16 +434,16 @@ class Timezone(commands.Cog):
                     naive_time_string += " (-1)"
                 elif naive_date > time_now.date():  # +1 day
                     naive_time_string += " (+1)"
-                if naive_time_string not in users_by_timezones:
-                    users_by_timezones[naive_time_string] = [(user_id, tz)]
+                if (naive_time, naive_time_string) not in users_by_timezones:
+                    users_by_timezones[(naive_time, naive_time_string)] = [(user_id, tz)]
                 else:
-                    users_by_timezones[naive_time_string].append((user_id, tz))
+                    users_by_timezones[(naive_time, naive_time_string)].append((user_id, tz))
 
             users_by_timezones_sorted = sorted(
                 users_by_timezones.items(),
-                key=lambda x: ("-1" not in x[0], "+1" in x[0], x[0], len(x[1])),
+                key=lambda x: ("-1" not in x[0][1], "+1" in x[0][1], x[0][0], len(x[1])),
             )  # Compare so -1 day, comes before today, which comes before +1 day.
-            for naive_time_string, user_time in users_by_timezones_sorted:
+            for (_, naive_time_string), user_time in users_by_timezones_sorted:
                 time_text += f"**{naive_time_string}**\n"
                 time_text += " ".join(f"<@{user_id}>" for user_id, tz in user_time) + "\n\n"
 
